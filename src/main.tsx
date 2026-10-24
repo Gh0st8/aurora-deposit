@@ -9,7 +9,7 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 import './styles.css';
 import App from './App';
 
-export const RPC = (import.meta.env.VITE_SOLANA_RPC as string) || 'https://api.mainnet-beta.solana.com';
+export const RPC = (import.meta.env.VITE_SOLANA_RPC as string) || 'https://solana-rpc.publicnode.com';
 
 function Root() {
   // Phantom, Solflare, Backpack and other Wallet Standard wallets are detected automatically.

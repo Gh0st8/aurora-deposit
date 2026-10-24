@@ -89,7 +89,7 @@ Environment (`.env.example`):
 | Var | Required | What |
 | --- | --- | --- |
 | `AURORA_API_KEY` | yes | Free, instant key from Intents Studio. Server-side only. |
-| `VITE_SOLANA_RPC` | no | Solana mainnet RPC for balance reads (defaults to the public endpoint). |
+| `VITE_SOLANA_RPC` | no | Solana mainnet RPC for balance reads (defaults to `https://solana-rpc.publicnode.com`; only `getBalance` + `getAccountInfo` on the USDC ATA are used). |
 
 Deploy: import the repo in Vercel (framework: Vite) and set `AURORA_API_KEY`.
 

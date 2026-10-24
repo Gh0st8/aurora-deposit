@@ -18,20 +18,18 @@ export function Balance({ owner, refreshKey }: { owner: string; refreshKey: numb
     try {
       const pk = new PublicKey(owner);
       // Public RPCs reject indexed calls (getTokenAccountsByOwner), so derive the USDC associated token
-      // account and read it directly. A missing account just means a zero balance.
+      // account and read it with getAccountInfo. A missing account just means a zero balance.
       const [ata] = PublicKey.findProgramAddressSync(
         [pk.toBuffer(), TOKEN_PROGRAM.toBuffer(), new PublicKey(DEST.USDC.mint!).toBuffer()],
         ATA_PROGRAM,
       );
-      const [lamports, tok] = await Promise.all([
+      const [lamports, info] = await Promise.all([
         connection.getBalance(pk, 'confirmed'),
-        connection.getTokenAccountBalance(ata, 'confirmed').catch((e: Error) => {
-          if (/could not find account/i.test(e.message)) return null;
-          throw e;
-        }),
+        connection.getParsedAccountInfo(ata, 'confirmed'),
       ]);
       setSol(lamports / LAMPORTS_PER_SOL);
-      setUsdc(tok ? Number(tok.value.uiAmountString ?? tok.value.uiAmount ?? 0) : 0);
+      const parsed: any = info.value?.data;
+      setUsdc(parsed?.parsed?.info?.tokenAmount ? Number(parsed.parsed.info.tokenAmount.uiAmountString) : 0);
       setErr(false);
     } catch {
       setErr(true);
