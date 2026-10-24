@@ -1,6 +1,7 @@
 # Aurora Deposit — fund your Solana wallet from any chain
 
 **Live demo:** https://aurora-deposit.vercel.app
+**Source:** https://gitlab.com/Gh0st8/aurora-deposit
 **Built for:** Encode Club Solana Hackathon 2026 — Aurora Intents bounty + Best Consumer App on Solana.
 
 Getting money *into* Solana is still the hardest part of using it: pick a bridge, buy gas on the source chain,
@@ -76,7 +77,7 @@ src/components/Balance         live SOL/USDC balance from Solana RPC
 ## Run it locally
 
 ```bash
-git clone https://github.com/Gh0st8/aurora-deposit
+git clone https://gitlab.com/Gh0st8/aurora-deposit
 cd aurora-deposit
 cp .env.example .env      # paste a free API key from https://studio.aurora.dev
 npm install

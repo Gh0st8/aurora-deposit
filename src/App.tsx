@@ -99,7 +99,7 @@ export default function App() {
 
       <footer className="foot tiny muted">
         Powered by <a href="https://intents.aurora.dev" target="_blank" rel="noreferrer">Aurora Intents</a> ·{' '}
-        <a href="https://github.com/Gh0st8/aurora-deposit" target="_blank" rel="noreferrer">Source</a>
+        <a href="https://gitlab.com/Gh0st8/aurora-deposit" target="_blank" rel="noreferrer">Source</a>
       </footer>
     </div>
   );
