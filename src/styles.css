@@ -124,3 +124,4 @@ input:focus, select:focus { outline: none; border-color: var(--violet); }
   .top .wallet-adapter-button { padding: 0 12px; font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+.addr { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
