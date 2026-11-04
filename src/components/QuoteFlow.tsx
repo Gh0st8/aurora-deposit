@@ -13,10 +13,17 @@ const STEP_LABEL: Record<string, string> = {
   INCOMPLETE_DEPOSIT: 'Deposit below quoted amount',
   REFUNDED: 'Refunded to your refund address',
   FAILED: 'Failed',
+  EXPIRED: 'Quote expired',
 };
 const TERMINAL = new Set(['SUCCESS', 'REFUNDED', 'FAILED']);
 
-interface Active { res: QuoteResponse; originSymbol: string; originChain: string }
+interface Active { res: QuoteResponse; originSymbol: string; originChain: string; refundTo?: string; at?: number }
+interface Past { depositAddress: string; amountIn: string; symbol: string; chain: string; dest: string; status: string; at: number; solTx?: string }
+const HIST = 'ad:history';
+const readHist = (): Past[] => { try { return JSON.parse(localStorage.getItem(HIST) || '[]'); } catch { return []; } };
+function saveHist(p: Past) { const h = readHist().filter((x) => x.depositAddress !== p.depositAddress); localStorage.setItem(HIST, JSON.stringify([p, ...h].slice(0, 10))); }
+const EXPLORER: Record<string, string> = { base: 'https://basescan.org/tx/', eth: 'https://etherscan.io/tx/', arb: 'https://arbiscan.io/tx/', op: 'https://optimistic.etherscan.io/tx/', pol: 'https://polygonscan.com/tx/', bsc: 'https://bscscan.com/tx/', sol: 'https://solscan.io/tx/', btc: 'https://mempool.space/tx/', near: 'https://nearblocks.io/txns/' };
+const originTxUrl = (chain: string, h: string) => (EXPLORER[chain] ? EXPLORER[chain] + h : '');
 
 /**
  * 1Click Swap via Aurora Intents: quote -> unique deposit address -> live status, with refunds.
@@ -37,6 +44,9 @@ export function QuoteFlow({ recipient, dest, onArrived }: { recipient: string; d
   const [error, setError] = useState('');
   const [hash, setHash] = useState('');
   const [submitted, setSubmitted] = useState('');
+  const [checked, setChecked] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 15_000); return () => clearInterval(t); }, []);
 
   useEffect(() => {
     aurora.tokens().then(setTokens).catch((e) => setError('Could not load supported tokens: ' + e.message));
@@ -70,7 +80,7 @@ export function QuoteFlow({ recipient, dest, onArrived }: { recipient: string; d
       });
       if (dry) setPreview(res);
       else {
-        const a: Active = { res, originSymbol: token.symbol, originChain: token.blockchain };
+        const a: Active = { res, originSymbol: token.symbol, originChain: token.blockchain, refundTo: refundTo.trim(), at: Date.now() };
         localStorage.setItem('ad:active', JSON.stringify(a));
         setActive(a);
         setStatus(null);
@@ -91,6 +101,8 @@ export function QuoteFlow({ recipient, dest, onArrived }: { recipient: string; d
       if (s.status === 'SUCCESS' && prev?.status !== 'SUCCESS') onArrived();
       return s;
     });
+    setChecked(Date.now());
+    if (active) saveHist({ depositAddress: depAddr, amountIn: active.res.quote.amountInFormatted, symbol: active.originSymbol, chain: active.originChain, dest, status: s.status, at: active.at || Date.now(), solTx: (s.swapDetails?.destinationChainTxHashes || []).map(txHash)[0] });
   }, 6_000, !!depAddr && !TERMINAL.has(status?.status || ''), [depAddr]);
 
   function reset() {
@@ -103,10 +115,15 @@ export function QuoteFlow({ recipient, dest, onArrived }: { recipient: string; d
 
   if (active && depAddr) {
     const q = active.res.quote;
-    const st = status?.status || 'PENDING_DEPOSIT';
+    const raw = status?.status || 'PENDING_DEPOSIT';
+    // Expiry: the quote deadline passed with no deposit seen. 1Click refunds anything that arrives late to refundTo.
+    const expired = raw === 'PENDING_DEPOSIT' && !!q.deadline && Date.parse(q.deadline) < now;
+    const st = expired ? 'EXPIRED' : raw;
     const idx = STEPS.indexOf(st as (typeof STEPS)[number]);
     const d = status?.swapDetails;
     const solTxs = (d?.destinationChainTxHashes || []).map(txHash);
+    const inTxs = (d?.originChainTxHashes || []).map(txHash);
+    const refundTo = active.refundTo;
     return (
       <div className="flow">
         <div className="deposit-card">
@@ -129,7 +146,12 @@ export function QuoteFlow({ recipient, dest, onArrived }: { recipient: string; d
             <li key={s} className={i < idx || st === 'SUCCESS' ? 'done' : i === idx ? 'now' : ''}>{STEP_LABEL[s]}</li>
           ))}
         </ol>
-        {!STEPS.includes(st as any) && <div className={`banner ${st === 'REFUNDED' ? 'warn' : 'bad'}`}>{STEP_LABEL[st]}{d?.refundReason ? ` — ${d.refundReason}` : ''}{d?.refundedAmountFormatted && d.refundedAmountFormatted !== '0' ? ` (${d.refundedAmountFormatted} ${active.originSymbol} back to ${short(String(active.res.quoteRequest.refundTo))})` : ''}</div>}
+        {st === 'EXPIRED' && <div className="banner warn">Quote expired. Don't send to this address. If you already sent, it is refunded automatically to {refundTo ? short(refundTo) : 'your refund address'}. Start a new deposit for a fresh quote.</div>}
+        {st === 'INCOMPLETE_DEPOSIT' && <div className="banner warn">The deposit was less than the quoted amount{d?.depositedAmountFormatted ? ` (${d.depositedAmountFormatted} ${active.originSymbol} received)` : ''}. It will be refunded to {refundTo ? short(refundTo) : 'your refund address'}.</div>}
+        {st === 'REFUNDED' && <div className="banner warn">Refunded{d?.refundedAmountFormatted && d.refundedAmountFormatted !== '0' ? ` ${d.refundedAmountFormatted} ${active.originSymbol}` : ''} to {refundTo ? short(refundTo) : 'your refund address'} on {chainName(active.originChain)}.{d?.refundReason ? ` Reason: ${d.refundReason}.` : ''}</div>}
+        {st === 'FAILED' && <div className="banner bad">The swap failed{d?.refundReason ? `: ${d.refundReason}` : ''}. Any deposited funds go back to {refundTo ? short(refundTo) : 'your refund address'}.</div>}
+        {inTxs.length > 0 && <div className="tiny muted">Deposit tx: {inTxs.map((h) => originTxUrl(active.originChain, h) ? <a key={h} href={originTxUrl(active.originChain, h)} target="_blank" rel="noreferrer">{short(h)} ↗ </a> : <span key={h}>{short(h)} </span>)}</div>}
+        {checked > 0 && !TERMINAL.has(st) && <div className="tiny muted">Status checked {Math.max(0, Math.round((now - checked) / 1000))}s ago · updates every 6s</div>}
         {st === 'SUCCESS' && (
           <div className="banner good">
             Received {d?.amountOutFormatted || q.amountOutFormatted} {dest} in your Solana wallet.
@@ -152,7 +174,7 @@ export function QuoteFlow({ recipient, dest, onArrived }: { recipient: string; d
             {submitted && <div className="tiny muted">{submitted}</div>}
           </details>
         )}
-        <button className="btn ghost wide" onClick={reset}>{TERMINAL.has(st) ? 'New deposit' : 'Cancel & start over'}</button>
+        <button className="btn ghost wide" onClick={reset}>{TERMINAL.has(st) || st === 'EXPIRED' ? 'New deposit' : 'Cancel & start over'}</button>
       </div>
     );
   }
@@ -178,6 +200,7 @@ export function QuoteFlow({ recipient, dest, onArrived }: { recipient: string; d
       {usd != null && <div className="tiny muted">≈ ${usd.toFixed(2)}</div>}
       <label className="field-label" htmlFor="ref">Refund address on {chainName(chain)}</label>
       <input id="ref" placeholder={`Your ${chainName(chain)} address, in case the swap can't complete`} value={refundTo} onChange={(e) => setRefundTo(e.target.value)} />
+      <div className="tiny muted">If the swap can't complete, you send less than quoted, or the quote expires, your funds go back here automatically.</div>
 
       {preview ? (
         <div className="quote">
@@ -196,6 +219,12 @@ export function QuoteFlow({ recipient, dest, onArrived }: { recipient: string; d
         </button>
       )}
       {error && <div className="error">{error}</div>}
+      {readHist().length > 0 && (
+        <div className="history">
+          <div className="field-label">Recent deposits</div>
+          <ul className="tiny">{readHist().map((h) => <li key={h.depositAddress}>{new Date(h.at).toLocaleDateString()} · {h.amountIn} {h.symbol} on {chainName(h.chain)} → {h.dest} · <b>{STEP_LABEL[h.status] || h.status}</b>{h.solTx ? <a href={solscanTx(h.solTx)} target="_blank" rel="noreferrer"> Solscan ↗</a> : null}</li>)}</ul>
+        </div>
+      )}
     </div>
   );
 }

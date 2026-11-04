@@ -1,6 +1,6 @@
 # Aurora Deposit — fund your Solana wallet from any chain
 
-**Live demo:** https://aurora-deposit.vercel.app
+**Live demo:** https://deposit.findapp.tech
 **Source:** https://gitlab.com/Gh0st8/aurora-deposit
 **Built for:** Encode Club Solana Hackathon 2026 — Aurora Intents bounty + Best Consumer App on Solana.
 
@@ -19,6 +19,14 @@ Solana wallet.
   guaranteed minimum, enter a **refund address** on the source chain, get a unique deposit address + QR, and watch
   live status: `PENDING_DEPOSIT → KNOWN_DEPOSIT_TX → PROCESSING → SUCCESS` (or `INCOMPLETE_DEPOSIT` / `REFUNDED` /
   `FAILED`, with the refund reason and amount). On success the Solana transaction links to Solscan.
+- **Deposit status tracking.** Every one-time deposit is polled by its deposit address (`GET /api/status`) every
+  6 s and shown as **Waiting for deposit → Deposit seen → Swapping & bridging → Delivered on Solana**, with the
+  source-chain deposit tx and the Solana payout tx linked to their explorers and a "status checked Ns ago" line.
+- **Failure, expiry and refunds handled.** If the quote deadline passes with no deposit, the card switches to
+  **Quote expired** and tells the user not to send (anything that arrives late is refunded). `INCOMPLETE_DEPOSIT`
+  (sent less than quoted), `REFUNDED` (with amount, reason and the refund address) and `FAILED` each get plain-English
+  copy. The refund address is required up front and explained before a quote is locked.
+- **Recent deposits.** The last 10 deposits on this device with their final status and Solscan link.
 - **Speed-up:** paste your deposit tx hash to notify 1Click (`/api/deposit/submit`).
 - **Live Solana balances** of the receiving wallet (SOL + USDC) that refresh when a deposit lands.
 - Wallet Adapter (Phantom, Solflare, Backpack and any Wallet Standard wallet), or paste an address.
@@ -93,9 +101,16 @@ Environment (`.env.example`):
 
 Deploy: import the repo in Vercel (framework: Vite) and set `AURORA_API_KEY`.
 
+## Tracks
+
+- **Best Consumer App on Solana:** one screen, no bridge UI, no gas on the source chain, no account. Pick SOL or USDC,
+  send from where your money is, watch it arrive.
+- **Aurora Intents bounty:** built on the Aurora Intents 1Click Swap API and Intents Deposits (persistent addresses),
+  with full status tracking, refunds and expiry handling.
+
 ## Demo steps
 
-1. Open the live demo and connect Phantom.
+1. Open https://deposit.findapp.tech and connect Phantom (or paste a Solana address).
 2. Choose **USDC** → **Permanent address** → **Ethereum & EVM** → *Get my address*. Note the same address works
    on Base, Arbitrum, Polygon, etc.
 3. Send ~$2 of ETH/USDC on Base to it. Watch *Activity* go from received → delivered, then the USDC balance tick up.
