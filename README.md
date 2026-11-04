@@ -122,3 +122,13 @@ Fees: Aurora's protocol fee applies per their docs (integrator fee on this key: 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Real mainnet deposit (proof)
+
+On 2026-11-04 a real deposit ran end to end through deposit.findapp.tech:
+
+- Sent: 2.68 USDC on Base from Coinbase to a one-time Aurora 1Click deposit address
+- Received: 2.41942 USDC on Solana (quoted minimum 2.398692)
+- Base deposit tx: https://basescan.org/tx/0x91b146b8e97282575c3bfaee8804430637a5ab1b8f898c994a3a3b07efdcf618
+- Solana payout tx: https://solscan.io/tx/2RjpReMFHrdSgdpk1zBqCBD6JKfiB2ddapgEJmEUBYtieHwp5s7jV8Ze8rWfgRWvoCoDdf5fUCQxCAf64h6TEMqD
+- The tracker went Waiting for deposit, Deposit seen, Swapping & bridging, Delivered on Solana with no manual steps.
